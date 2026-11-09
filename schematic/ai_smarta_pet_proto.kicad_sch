@@ -1,0 +1,36 @@
+# AI Smart Pet Prototype - KiCad Schematic Reference
+# Role: AI Hardware Architect
+
+## Schematic File: ai_smarta_pet_proto.kicad_sch
+# (Note: This is a text representation of the schematic structure for KiCad)
+
+(kicad_sch (version 20241014) (generator eeschema)
+
+  (paper "A4")
+
+  (lib_symbols
+    (symbol "ESP32-S3-WROOM-1" (pin "GPIO0" "input") (pin "GPIO1" "input") ...)
+    (symbol "OV2640" (pin "D0" "input") (pin "D1" "input") ...)
+    (symbol "TB6612FNG" (pin "IN1" "input") (pin "IN2" "input") ...)
+    (symbol "TP4056" (pin "VIN" "input") (pin "BAT" "output") ...)
+    (symbol "AMS1117-3.3" (pin "VIN" "input") (pin "VOUT" "output") ...)
+    (symbol "W25Q128JV" (pin "CS" "input") (pin "MOSI" "input") ...)
+  )
+
+  (sheet (at 0 0) (size 210 297) (stroke (width 0.15) (type solid))
+    (title_block (title "AI Smart Pet Prototype") (company "Arena.ai") (date "2026-11-09") (rev "1.0") (comment1 "AI Hardware Architect"))
+    (symbol "ESP32-S3-WROOM-1" (at 50 50) (unit 1))
+    (symbol "OV2640" (at 50 100) (unit 1))
+    (symbol "TB6612FNG" (at 100 50) (unit 1))
+    (symbol "TP4056" (at 100 100) (unit 1))
+    (symbol "AMS1117-3.3" (at 150 50) (unit 1))
+    (symbol "W25Q128JV" (at 150 100) (unit 1))
+    
+    (wire (at 50 50 0) (at 50 100 0) (stroke (width 0.15) (type solid))) ; Camera DVP to MCU
+    (wire (at 50 50 0) (at 100 50 0) (stroke (width 0.15) (type solid))) ; Motor Driver to MCU
+    (wire (at 100 100 0) (at 150 50 0) (stroke (width 0.15) (type solid))) ; Power to MCU/Motor
+    (wire (at 150 100 0) (at 50 50 0) (stroke (width 0.15) (type solid))) ; Flash to MCU
+    
+    (junction (at 75 75))
+  )
+)

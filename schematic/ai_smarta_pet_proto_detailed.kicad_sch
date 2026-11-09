@@ -1,0 +1,185 @@
+# AI Smart Pet Prototype - Detailed KiCad Schematic & PCB Layout
+# Role: AI Hardware Architect (Mode C: Hardware Circuit Design)
+
+## 1. Design Philosophy
+作为 AI 硬件架构师，我意识到之前的文本参考（schematic/ai_smarta_pet_proto.kicad_sch）仅为结构化描述。为了真正“画好”原型图，我们需要提供**可直接导入 KiCad 的完整逻辑定义**以及**详细的 PCB 布局约束**。
+
+本文件将原型图拆解为：
+1. **原理图逻辑定义 (Schematic Logic)**：每个模块的引脚连接、元器件参数。
+2. **PCB 布局图 (PCB Layout Plan)**：4 层板的物理排布、信号走线、散热设计。
+3. **Mermaid 详细电路图**：可视化连接关系。
+
+---
+
+## 2. 详细原理图逻辑 (KiCad Schematic Logic)
+### A. 核心主控模块 (U4: ESP32-S3-WROOM-1)
+- **引脚定义**：
+  - GPIO0-GPIO47: 分配给摄像头、电机、音频、传感器。
+  - EN: 复位引脚 (RC 电路 + 按键)。
+  - 3.3V/GND: 电源引脚 (AMS1117-3.3 供电)。
+- **连接关系**：
+  - **摄像头 (OV2640)**:
+    - D0-D7 -> GPIO26-GPIO39 (DVP 8-bit)
+    - PCLK -> GPIO21 (24MHz)
+    - VSYNC -> GPIO22
+    - HREF -> GPIO23
+    - SCCB_SDA -> GPIO18, SCCB_SCL -> GPIO19
+  - **电机驱动 (TB6612FNG)**:
+    - IN1 -> GPIO1, IN2 -> GPIO2 (电机 1)
+    - IN3 -> GPIO3, IN4 -> GPIO4 (电机 2)
+    - PWM_A -> GPIO18, PWM_B -> GPIO19 (速度控制)
+  - **音频 (INMP441/Speaker)**:
+    - I2S_DIN -> GPIO34, I2S_BCLK -> GPIO35, I2S_WS -> GPIO36
+  - **存储 (W25Q128JV)**:
+    - CS -> GPIO5, MOSI -> GPIO23, MISO -> GPIO19, CLK -> GPIO18 (SPI)
+  - **传感器 (DHT11/MPU6050)**:
+    - DHT11_DATA -> GPIO25 (I/O)
+    - MPU6050_SDA -> GPIO21, MPU6050_SCL -> GPIO22 (I2C)
+
+### B. 电源管理模块 (U1: TP4056, U2: AMS1117-3.3, U3: AMS1117-1.8)
+- **输入**：USB-C 5V -> TP4056 (VIN)
+- **电池**：3.7V Li-ion -> TP4056 (BAT) -> 3.7V_OUT
+- **3.3V 转换**：3.7V_OUT -> AMS1117-3.3 (VOUT) -> MCU, Motor Driver, Sensors
+- **1.8V 转换**：3.3V_OUT -> AMS1117-1.8 (VOUT) -> Camera, NPU
+- **去耦电容**：0.1uF (C1-C10) 靠近每个芯片引脚，10uF (C11-C15) 靠近电源输入。
+
+### C. 执行控制模块 (U10: TB6612FNG)
+- **输入**：IN1/IN2/IN3/IN4 (MCU GPIO), PWM_A/PWM_B (MCU PWM)
+- **输出**：OUT1/OUT2 (电机 1), OUT3/OUT4 (电机 2)
+- **电源**：VM (5V USB), VCC (3.3V Logic)
+- **散热**：底部铜箔散热片 (2oz)，过孔连接到底层地平面。
+
+---
+
+## 3. PCB 布局规划 (PCB Layout Plan - 4 Layer)
+### 层叠结构 (Stackup)
+- **Layer 1 (Top)**: 信号层 (MCU, Camera, Sensors, LEDs) - **厚度 35um**
+- **Layer 2 (Inner1)**: 地平面 (GND) - **厚度 35um** (完整地平面，屏蔽干扰)
+- **Layer 3 (Inner2)**: 电源平面 (3.3V, 1.8V, 5V) - **厚度 35um** (分区域供电)
+- **Layer 4 (Bottom)**: 信号层 (Motor Drivers, Communication, Battery) - **厚度 35um**
+
+### 物理排布 (Physical Layout - 50mm x 50mm)
+1. **中心区域 (0,0)**: ESP32-S3-WROOM-1 (核心计算层)
+   - 周围环绕 0.1uF 去耦电容。
+   - 天线区域 (Top-Right): 预留 16mm x 16mm 空间，远离高速信号。
+2. **左上区域 (-20, 20)**: OV2640 摄像头接口 (感知输入层)
+   - DVP 走线等长控制 (< 50mm)，阻抗 50Ω。
+   - 1.8V 电源滤波 (LDO U3)。
+3. **右下区域 (20, -20)**: TB6612FNG 电机驱动 (执行控制层)
+   - 大电流走线 (1.0mm)，过孔连接到底层地平面。
+   - 散热铜箔 (2oz)，面积 > 100mm²。
+4. **左下区域 (-20, -20)**: TP4056 & AMS1117 (电源管理层)
+   - USB-C 接口 (J2) 位于左侧边缘。
+   - 电池接口 (J3) 位于底部边缘。
+5. **右上区域 (20, 20)**: W25Q128JV & 传感器 (存储/感知层)
+   - SPI 走线短距离 (< 30mm)。
+   - I2C 走线 (DHT11/MPU6050)。
+
+### 信号约束 (Signal Constraints)
+- **DVP 时钟线 (24MHz)**: 阻抗 50Ω，差分信号间距 0.15mm，长度匹配。
+- **I2S 音频线**: 差分走线，屏蔽干扰。
+- **PWM 电机线**: 频率 1kHz，去耦电容 10uF。
+- **EMC**: 地平面完整，电源滤波电容靠近芯片引脚，天线区域无信号线。
+
+---
+
+## 4. 可视化电路图 (Mermaid)
+```mermaid
+graph LR
+    subgraph "核心计算层 (ESP32-S3)"
+        MCU[ESP32-S3-WROOM-1]
+    end
+    
+    subgraph "感知输入层"
+        CAM[OV2640 Camera]
+        MIC[INMP441 Mic]
+        SNS[DHT11/MPU6050]
+    end
+    
+    subgraph "执行控制层"
+        MTR[TB6612FNG Driver]
+        MOT[SG90 Motors x2]
+        LED[RGB LEDs]
+    end
+    
+    subgraph "电源管理层"
+        USB[USB-C 5V]
+        BAT[3.7V Li-ion]
+        TP4056[TP4056 Charger]
+        LDO33[AMS1117-3.3]
+        LDO18[AMS1117-1.8]
+    end
+    
+    subgraph "存储层"
+        FLASH[W25Q128JV 16MB]
+    end
+
+    %% Connections
+    USB --> TP4056
+    BAT --> TP4056
+    TP4056 --> LDO33
+    LDO33 --> LDO18
+    
+    LDO33 --> MCU
+    LDO18 --> CAM
+    LDO33 --> MTR
+    LDO33 --> FLASH
+    LDO33 --> SNS
+    
+    MCU -. DVP (8-bit, 24MHz) .-> CAM
+    MCU -. I2S (DIN/BCLK/WS) .-> MIC
+    MCU -. SPI (CS/MOSI/MISO/CLK) .-> FLASH
+    MCU -. I2C (SDA/SCL) .-> SNS
+    MCU -. PWM/GPIO .-> MTR
+    MCU -. GPIO .-> LED
+    
+    MTR -. PWM/DIR .-> MOT
+    
+    style MCU fill:#f9f,stroke:#333,stroke-width:2px
+    style CAM fill:#bbf,stroke:#333,stroke-width:2px
+    style MTR fill:#bfb,stroke:#333,stroke-width:2px
+    style TP4056 fill:#ffb,stroke:#333,stroke-width:2px
+```
+
+---
+
+## 5. KiCad 文件结构 (可导入格式)
+为了方便你直接在 KiCad 中绘制，我提供了以下 **Netlist (网络表)** 逻辑，你可以将其导入 KiCad 的 Schematic Editor：
+
+### Netlist Logic (Simplified)
+```
+(net (code 1) (name "3V3") (node (ref U4) (pin 1)) (node (ref U2) (pin 2)) (node (ref U10) (pin 16)))
+(net (code 2) (name "GND") (node (ref U4) (pin 2)) (node (ref U1) (pin 2)) (node (ref U10) (pin 8)))
+(net (code 3) (name "CAM_D0") (node (ref U4) (pin 26)) (node (ref U5) (pin 1)))
+(net (code 4) (name "CAM_PCLK") (node (ref U4) (pin 21)) (node (ref U5) (pin 10)))
+(net (code 5) (name "MOTOR_IN1") (node (ref U4) (pin 1)) (node (ref U10) (pin 2)))
+(net (code 6) (name "MOTOR_PWM") (node (ref U4) (pin 18)) (node (ref U10) (pin 1)))
+(net (code 7) (name "SPI_CS") (node (ref U4) (pin 5)) (node (ref U9) (pin 1)))
+(net (code 8) (name "I2S_DIN") (node (ref U4) (pin 34)) (node (ref U6) (pin 1)))
+```
+
+---
+
+## 6. 改进建议与验证 (Mode F: Hardware Architecture Review)
+- **风险**：DVP 信号干扰（之前提到）。
+  - **改进**：在 PCB Layout 中，DVP 走线必须与地平面平行，且长度差 < 5mm。
+- **风险**：电机驱动发热（之前提到）。
+  - **改进**：在 TB6612FNG 下方增加 10 个过孔连接到底层地平面，散热铜箔面积增加至 150mm²。
+- **验证**：
+  1. **原理图检查**：确认所有引脚连接正确（无悬空引脚）。
+  2. **PCB 检查**：确认 4 层板层叠结构，阻抗控制 50Ω。
+  3. **仿真**：使用 LTspice 仿真电源纹波（目标 < 50mV）。
+
+---
+
+## 7. 下一步操作
+1. **导入 KiCad**：将上述 Netlist 逻辑导入 KiCad Schematic Editor。
+2. **绘制 PCB**：根据 Layer Stackup 和 Physical Layout 规划绘制。
+3. **生成 Gerber**：导出 4 层板 Gerber 文件（Top/Inner1/Inner2/Bottom）。
+4. **打样**：下单 5 块原型板（JLCPCB/PCBWay）。
+5. **固件烧录**：参考 `firmware/main.c` 烧录 ESP32-S3。
+
+---
+
+## 8. 更新文件
+我将更新 `schematic/ai_smarta_pet_proto.kicad_sch` 为更详细的逻辑定义，并更新 `HARDWARE_DESIGN_SPECIFICATION.md`。
